@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments and Misc
+.venv/
+venv/
+env/
+.claude/
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# RL artifacts (keep the folders, not the content)
+rl/logs/*
+rl/models/*
+!rl/logs/.gitkeep
+!rl/models/.gitkeep
