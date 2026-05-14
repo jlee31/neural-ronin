@@ -5,7 +5,7 @@ import scripts.pygpen as pp
 
 DISPLAY_W, DISPLAY_H = 640, 360
 BG_DIR = "assets/feudal-japan/Background"
-MAP_PATH = "tiled_maps/test.tmx"
+MAP_PATH = "assets/maps/test.tmx"
 
 # Parallax speeds for each background layer (back → front)
 BG_LAYERS = [
