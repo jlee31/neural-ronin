@@ -35,7 +35,7 @@ class Textbox(Element):
         except KeyError:
             self.font = None
         self.width = width
-        self.height = self.font.line_height
+        self.height = self.font.line_height if self.font else 0
         self.color = color
         self.return_event = return_event
         self.show_cursor = show_cursor

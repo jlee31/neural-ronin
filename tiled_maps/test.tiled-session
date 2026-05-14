@@ -1,0 +1,53 @@
+{
+    "activeFile": "",
+    "expandedProjectPaths": [
+    ],
+    "fileStates": {
+        "assets.tsx": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1,
+            "scaleInEditor": 0.42
+        },
+        "feudaljapan.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 2.6561,
+            "scaleInEditor": 1.76
+        },
+        "housenstuff.tsx": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "randomstuff2.tsx": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1,
+            "scaleInEditor": 1.76
+        },
+        "test.tmx": {
+            "scale": 1.02,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 376.9607843137254,
+                "y": 259.80392156862746
+            }
+        },
+        "test.tmx#assets": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1
+        }
+    },
+    "last.imagePath": "/Users/josephlee/Documents/070 Game Assets/Feudal Japan Village – 2D Pixel Art Platformer Asset Pack/Props",
+    "map.lastUsedFormat": "tmx",
+    "openFiles": [
+    ],
+    "project": "test.tiled-project",
+    "recentFiles": [
+        "test.tmx",
+        "housenstuff.tsx",
+        "feudaljapan.tsx",
+        "randomstuff2.tsx",
+        "assets.tsx"
+    ],
+    "tileset.lastUsedFormat": "tsx",
+    "tileset.type": 0
+}

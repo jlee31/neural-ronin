@@ -1,13 +1,9 @@
 import os
 import sys
-import time
 import math
-import random
 
 import pygame
-from pygame.locals import *
-from tkinter import filedialog
-from tkinter import *
+from tkinter import Tk, filedialog
 
 try:
     import pygpen
@@ -321,7 +317,8 @@ class Game(pygpen.PygpenGame):
                 self.layer -= 1
         
         if self.e['Input'].pressed('custom_data'):
-            self.textbox.bind()
+            if self.font_path:
+                self.textbox.bind()
         if self.e['Input'].pressed('grid_toggle'):
             self.grid_mode = not self.grid_mode
         if self.e['Input'].pressed('layer_toggle'):
