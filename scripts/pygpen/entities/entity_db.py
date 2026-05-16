@@ -10,7 +10,12 @@ from ..assets.animation import Animation
 class EntityData:
     def __init__(self, config, animations=None):
         self.config = config
-        self.assets = load_img_directory(self.config['file_path'], colorkey=self.config['colorkey'])
+        # no colorkey => the PNG has a real alpha channel, so load with convert_alpha
+        self.assets = load_img_directory(
+            self.config['file_path'],
+            alpha=self.config['colorkey'] is None,
+            colorkey=self.config['colorkey'],
+        )
         self.animations = {}
         for animation in self.config['animations']:
             if animation in self.assets:

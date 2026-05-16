@@ -1,0 +1,6 @@
+{
+    "left":   ["button", 97],
+    "right":  ["button", 100],
+    "jump":   ["button", 32],
+    "attack": ["button", 106]
+}

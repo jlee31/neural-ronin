@@ -2,76 +2,67 @@ import pygame
 import pytmx
 
 import scripts.pygpen as pp
+from scripts.player import Player
+from scripts.tilemap_bridge import TiledPhysicsBridge
+from scripts.background import ParallaxBackground
+from scripts.SETTINGS import DISPLAY_WIDTH, DISPLAY_HEIGHT, BG_DIR, MAP_PATH, BG_LAYERS
 
-DISPLAY_W, DISPLAY_H = 640, 360
-BG_DIR = "assets/feudal-japan/Background"
-MAP_PATH = "assets/maps/test.tmx"
-
-# Parallax speeds for each background layer (back → front)
-BG_LAYERS = [
-    ("1 (5).png", 0.05),  # sky
-    ("1 (4).png", 0.15),  # mountains
-    ("1 (3).png", 0.28),  # hills / pagodas
-    ("1 (2).png", 0.45),  # foreground silhouette
-]
+# Spawn above the floor (row 17 on a 32px-tile map), accounting for player height.
+SPAWN_POS = (200, 17 * 32 - 30)
+CAMERA_LERP = 0.10  # 0 = locked, 1 = snap; lower = smoother follow
 
 
 class Game(pp.PygpenGame):
     def load(self):
-        pp.init((1280, 720), caption='neural-ronin')
-        self.display = pygame.Surface((DISPLAY_W, DISPLAY_H))
+        pp.init((1280, 720),
+                caption='neural-ronin',
+                entity_path='config/entities',
+                input_path='config/key_config.json')
 
+        # internal pixel canvas — scaled up to the window each frame for chunky pixels
+        self.display = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
         self.tmx_map = pytmx.load_pygame(MAP_PATH, pixelalpha=True)
+        self.physics_map = TiledPhysicsBridge(self.tmx_map)
+        self.background = ParallaxBackground((DISPLAY_WIDTH, DISPLAY_HEIGHT), BG_DIR, BG_LAYERS)
 
-        # Scale each bg layer to display size; keep originals for tiling
-        self.backgrounds = []
-        for filename, speed in BG_LAYERS:
-            raw = pygame.image.load(f"{BG_DIR}/{filename}").convert_alpha()
-            scaled = pygame.transform.scale(raw, (DISPLAY_W, DISPLAY_H))
-            self.backgrounds.append((scaled, speed))
+        # camera clamp bounds, so we never peek past the map edges
+        self.map_w = self.tmx_map.width * self.tmx_map.tilewidth
+        self.map_h = self.tmx_map.height * self.tmx_map.tileheight
+        self.camera = [0.0, float(self.map_h - DISPLAY_HEIGHT)]
 
-        # Start camera so the floor (rows 14-16) is visible near the bottom
-        map_h_px = self.tmx_map.height * self.tmx_map.tileheight
-        self.camera = [0, map_h_px - DISPLAY_H]
+        self.reset()
 
-    def _draw_backgrounds(self):
-        cam_x = self.camera[0]
-        for surf, speed in self.backgrounds:
-            offset = int(cam_x * speed) % DISPLAY_W
-            self.display.blit(surf, (-offset, 0))
-            # tile a second copy so there's no gap when scrolling
-            self.display.blit(surf, (DISPLAY_W - offset, 0))
+    def reset(self):
+        # respawn fresh; called on load and when the player dies
+        self.player = Player('player', SPAWN_POS)
 
-    def _draw_map(self):
-        tw = self.tmx_map.tilewidth
-        th = self.tmx_map.tileheight
-        cx, cy = int(self.camera[0]), int(self.camera[1])
-        for layer in self.tmx_map.visible_layers:
-            if isinstance(layer, pytmx.TiledTileLayer):
-                for x, y, image in layer.tiles():
-                    if image:
-                        # Tiled bottom-aligns tiles taller than the grid tile height
-                        draw_y = (y + 1) * th - image.get_height() - cy
-                        self.display.blit(image, (x * tw - cx, draw_y))
+    def _update_camera(self):
+        # lerp toward a point centered on the player, then clamp inside the map
+        target_x = self.player.center[0] - DISPLAY_WIDTH / 2
+        target_y = self.player.center[1] - DISPLAY_HEIGHT / 2
+        self.camera[0] += (target_x - self.camera[0]) * CAMERA_LERP
+        self.camera[1] += (target_y - self.camera[1]) * CAMERA_LERP
+        self.camera[0] = max(0, min(self.map_w - DISPLAY_WIDTH, self.camera[0]))
+        self.camera[1] = max(0, min(self.map_h - DISPLAY_HEIGHT, self.camera[1]))
 
     def update(self):
-        # --- camera movement (WASD) ---
-        keys = pygame.key.get_pressed()
-        speed = 3
-        if keys[pygame.K_a]:
-            self.camera[0] -= speed
-        if keys[pygame.K_d]:
-            self.camera[0] += speed
-        if keys[pygame.K_w]:
-            self.camera[1] -= speed
-        if keys[pygame.K_s]:
-            self.camera[1] += speed
+        # respawn the player on death so the loop keeps running
+        if not self.player.alive:
+            self.reset()
 
-        self._draw_backgrounds()
-        self._draw_map()
+        self.player.update()
+        self._update_camera()
+
+        # integer offset avoids jitter when blitting on the pixel canvas
+        offset = (int(self.camera[0]), int(self.camera[1]))
+
+        self.background.draw(self.display, self.camera[0])
+        self.physics_map.draw(self.display, self.tmx_map, self.camera)
+        self.player.render(self.display, offset=offset)
 
         self.e['Renderer'].cycle({'default': self.display})
 
+        # blit our small pixel canvas scaled up to fill the actual window
         window = self.e['Window']
         window.screen.blit(
             pygame.transform.scale(self.display, window.screen.get_size()), (0, 0)

@@ -1,4 +1,4 @@
-from rl.env import GameEnv
+from env import GameEnv
 
 # TODO: swap in whichever RL library you use (stable-baselines3, cleanrl, etc.)
 # Example with stable-baselines3:
