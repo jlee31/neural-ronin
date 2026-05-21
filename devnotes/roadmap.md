@@ -61,9 +61,13 @@ The game should already be playable + fun before starting this. RL needs:
 - Inspectable game state (player pos/vel, enemy pos, hp, etc. accessible from outside)
 - Headless mode (run game without opening a window)
 
-### 3.1 Headless game
-- [ ] Refactor `Game` so it can run without a `Window` (or use a `pygame` dummy display)
-- [ ] Step-mode: a method that advances exactly one frame given input flags
+**See [rl-handoff.md](rl-handoff.md)** for the full API + remaining-work doc.
+
+### 3.1 Headless game ✅
+
+- [x] Refactor `Game` so it can run without a `Window` (SDL dummy driver)
+- [x] Step-mode: `Game.step(actions)` advances exactly one fixed-dt frame
+- [x] Seeded RNG, sim-time animation clock, input adapter — all in place
 
 ### 3.2 Wire up `rl/env.py`
 - [ ] `reset()`: instantiate game, load level, return initial obs
