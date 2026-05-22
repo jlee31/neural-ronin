@@ -1,0 +1,6 @@
+pygame
+pytmx
+gymnasium
+stable-baselines3
+torch
+tensorboard
