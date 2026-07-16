@@ -8,8 +8,10 @@ import scripts.pygpen as pp
 from scripts.player import Player, MAX_HEALTH
 from scripts.tilemap_bridge import TiledPhysicsBridge
 from scripts.background import ParallaxBackground
-from scripts.SETTINGS import DISPLAY_WIDTH, DISPLAY_HEIGHT, BG_DIR, MAP_PATH, BG_LAYERS
-from scripts.enemies import Enemy, EnemyDirector
+from scripts.SETTINGS import (
+    DISPLAY_WIDTH, DISPLAY_HEIGHT, BG_DIR, MAP_PATH, BG_LAYERS, MAP_EDGE_WALLS,
+)
+from scripts.enemies import Enemy, Golem, EnemyDirector
 from scripts.combat import apply_player_attack_hits
 from scripts.game_data import load_high_score, save_high_score
 from scripts.levels import FLOOR_Y, get_level_config, spawn_positions
@@ -34,7 +36,7 @@ STATE_PLAYING = "playing"
 STATE_GAME_OVER = "game_over"
 
 # Input keys the player + UI use. Must match config/key_config.json bindings.
-INPUT_KEYS = ("left", "right", "jump", "attack", "confirm", "menu")
+INPUT_KEYS = ("left", "right", "jump", "attack", "dash", "confirm", "menu")
 
 
 class Game(pp.PygpenGame):
@@ -63,7 +65,10 @@ class Game(pp.PygpenGame):
         self.seed = seed
         # sim-time clock owned by Game. Replaces pygame.time.get_ticks() across the
         # codebase so animations stay deterministic in headless mode.
+        # Accumulated as float seconds — per-tick int truncation would lose
+        # 0.667ms every 60Hz tick and run the headless clock 4% slow.
         self.sim_time_ms = 0
+        self._sim_time_s = 0.0
         self.dt = 0.0
         self.rng = random.Random(seed)
         self.input_source = None  # set in load()
@@ -106,7 +111,10 @@ class Game(pp.PygpenGame):
         self.player = None
         self.enemies = []
         self.director = None
-        self.hit_vfx = HitVFX(rng=self.rng)
+        # Own RNG stream: cosmetic particle draws must not perturb gameplay RNG
+        # (self.rng also picks enemy spawn positions). Disabled headless — the
+        # particles are never rendered and would burn per-step sim time.
+        self.hit_vfx = HitVFX(rng=random.Random(self.seed), enabled=not self.headless)
 
         if self.headless:
             self.input_source = ScriptedInputSource(INPUT_KEYS)
@@ -119,8 +127,10 @@ class Game(pp.PygpenGame):
         if seed is not None:
             self.seed = seed
             self.rng = random.Random(seed)
-            self.hit_vfx.rng = self.rng
         self.sim_time_ms = 0
+        self._sim_time_s = 0.0
+        # stale held-keys would swallow the new episode's first pressed() edge
+        self.input_source.clear()
         self.state = STATE_PLAYING
         self.start_run()
 
@@ -160,17 +170,18 @@ class Game(pp.PygpenGame):
         self.banner_time = BANNER_SEC
 
     def _spawn_wave(self):
+        roster = [Enemy] * self.level_cfg["enemy_count"] + [Golem] * self.level_cfg["golem_count"]
         positions = spawn_positions(
             self.player.center[0],
             self.camera[0],
             self.map_w,
-            self.level_cfg["enemy_count"],
+            len(roster),
             self.rng,
         )
         self.director = EnemyDirector(self.level_cfg["max_attackers"])
         self.enemies = [
-            Enemy(pos, level_cfg=self.level_cfg, director=self.director, uid=i)
-            for i, pos in enumerate(positions)
+            cls(pos, level_cfg=self.level_cfg, director=self.director, uid=i)
+            for i, (cls, pos) in enumerate(zip(roster, positions))
         ]
         for enemy in self.enemies:
             self.hit_vfx.spawn_burst(enemy.center)
@@ -232,7 +243,12 @@ class Game(pp.PygpenGame):
     def _tick(self, dt):
         """One logical step of the simulation. Used by both live play and step()."""
         self.dt = dt
-        self.sim_time_ms += int(dt * 1000)
+        # pygpen entity physics integrates with Window.dt, which only window.cycle()
+        # updates — never called headless, leaving it at its 0.1s init value (6x-speed
+        # physics). Keep it in lockstep with the game's dt; a no-op in live play.
+        self.e["Window"].dt = dt
+        self._sim_time_s += dt
+        self.sim_time_ms = int(self._sim_time_s * 1000)
 
         if self.state == STATE_MENU:
             if self.input_source.pressed("confirm"):
@@ -249,8 +265,14 @@ class Game(pp.PygpenGame):
             # let particles keep settling so the screen isn't frozen
             self.hit_vfx.update(dt)
 
+    def _clamp_to_map(self, entity):
+        """Invisible wall at both map edges (MAP_EDGE_WALLS maps only)."""
+        entity.pos[0] = max(0.0, min(entity.pos[0], self.map_w - entity.size[0]))
+
     def _tick_playing(self, dt):
         self.player.update()
+        if MAP_EDGE_WALLS:
+            self._clamp_to_map(self.player)
         # Fell off the map: skip the dying animation (there's no floor to die on)
         # and flip straight to done so the game-over transition fires this tick.
         if self.player.alive and self.player.center[1] > self.map_h:
@@ -258,6 +280,8 @@ class Game(pp.PygpenGame):
             self.player.done = True
         for enemy in self.enemies:
             enemy.update(self.player, self.enemies)
+            if MAP_EDGE_WALLS:
+                self._clamp_to_map(enemy)
 
         kills = apply_player_attack_hits(self.player, self.enemies)
         if kills:
@@ -272,7 +296,8 @@ class Game(pp.PygpenGame):
 
         if not self.player.alive:
             old_high = self.high_score
-            if self.score > self.high_score:
+            # RL training must never touch the human player's persistent record
+            if self.score > self.high_score and not self.headless:
                 self.high_score = self.score
                 save_high_score(self.high_score)
             self.is_new_record = self.score > old_high and self.score > 0

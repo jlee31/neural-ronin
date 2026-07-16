@@ -20,6 +20,9 @@ class PygameInputSource:
     def holding(self, key):
         return self._inp.holding(key)
 
+    def clear(self):
+        pass  # pygpen's Input owns real keyboard state; nothing to reset
+
 
 class ScriptedInputSource:
     """
@@ -44,3 +47,10 @@ class ScriptedInputSource:
 
     def holding(self, key):
         return self._held.get(key, False)
+
+    def clear(self):
+        """Forget held state between episodes — a key held across a reset must
+        register as a fresh press, or the first post-reset action is swallowed."""
+        for key in self._held:
+            self._held[key] = False
+            self._just_pressed[key] = False

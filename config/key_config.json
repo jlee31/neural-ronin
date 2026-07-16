@@ -1,8 +1,30 @@
 {
-    "left":    ["button", 97],
-    "right":   ["button", 100],
-    "jump":    ["button", 32],
-    "attack":  ["button", 106],
-    "confirm": ["button", 13],
-    "menu":    ["button", 27]
+    "left": [
+        "button",
+        97
+    ],
+    "right": [
+        "button",
+        100
+    ],
+    "jump": [
+        "button",
+        32
+    ],
+    "attack": [
+        "button",
+        106
+    ],
+    "confirm": [
+        "button",
+        13
+    ],
+    "menu": [
+        "button",
+        27
+    ],
+    "dash": [
+        "button",
+        107
+    ]
 }

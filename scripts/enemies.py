@@ -60,23 +60,40 @@ class Enemy(pp.PhysicsEntity):
 
     Only aggression-token holders (EnemyDirector) may enter windup; the rest
     hold a standoff distance so the player is never blob-rushed.
+
+    Subclasses override the class attributes below to make new enemy types;
+    level configs are Bringer-tuned, so the scales adapt them per type.
     """
 
+    ENTITY_ID = "dummy_enemy"
+    FLIP_DRAW_SHIFT = 71      # px the sprite jumps when mirrored (off-center art)
+    SPEED_SCALE = 1.0         # multiplier on the level config's run_speed
+    HEALTH_BONUS = 0          # added to the level config's max_health
+    COOLDOWN_SCALE = 1.0      # multiplier on the level config's melee_cooldown
+    KNOCKBACK_MULT = 1.0      # how far player hits shove this enemy
+    STAGGERS = True           # False = poise: hits never interrupt the current action
+    CAN_JUMP = True
+    WINDUP = WINDUP_SEC
+    ATTACK_HIT_FRAMES = (4, 5, 6)  # 0-based `attack` anim frames that can connect
+    ATTACK_HITBOX = (28, 24)       # melee hitbox in front of the body (width, height)
+    ATTACK_EXTEND = 4              # horizontal overlap from body edge into the swing arc
+    ATTACK_DAMAGE = 1
+
     def __init__(self, pos, level_cfg=None, director=None, uid=0):
-        super().__init__("dummy_enemy", list(pos))
+        super().__init__(self.ENTITY_ID, list(pos))
         self.director = director if director is not None else EnemyDirector(1)
         self.uid = uid
         self.acceleration[1] = GRAVITY
         self.velocity_caps = [350, MAX_FALL]
 
-        self.max_health = MAX_HEALTH
-        self.run_speed = RUN_SPEED
-        self.melee_cooldown_base = MELEE_COOLDOWN
-        self.health = MAX_HEALTH
+        self.max_health = MAX_HEALTH + self.HEALTH_BONUS
+        self.run_speed = RUN_SPEED * self.SPEED_SCALE
+        self.melee_cooldown_base = MELEE_COOLDOWN * self.COOLDOWN_SCALE
         self.invuln = 0.0
         self.melee_cd = 0.0
         if level_cfg:
             self.apply_level_config(level_cfg)
+        self.health = self.max_health
         self.alive = True
         self.state = "spawning"
         self.state_time = 0.0
@@ -106,7 +123,7 @@ class Enemy(pp.PhysicsEntity):
         x = img_offset[0] + entity_offset[0]
         y = img_offset[1] + entity_offset[1]
         if self.flip[0]:
-            x -= 71
+            x -= self.FLIP_DRAW_SHIFT
         return (x, y)
 
     def _draw_speed_mult(self):
@@ -114,9 +131,9 @@ class Enemy(pp.PhysicsEntity):
         return lo + (hi - lo) * self.e["Game"].rng.random()
 
     def apply_level_config(self, cfg):
-        self.max_health = cfg["max_health"]
-        self.run_speed = cfg["run_speed"]
-        self.melee_cooldown_base = cfg["melee_cooldown"]
+        self.max_health = cfg["max_health"] + self.HEALTH_BONUS
+        self.run_speed = cfg["run_speed"] * self.SPEED_SCALE
+        self.melee_cooldown_base = cfg["melee_cooldown"] * self.COOLDOWN_SCALE
 
     # ------------------------------------------------------------------ state helpers
     def _enter_state(self, state):
@@ -132,19 +149,23 @@ class Enemy(pp.PhysicsEntity):
             return False
         self.health = max(0, self.health - amount)
         self.invuln = INVULN_AFTER_HIT
-        self._release_token()
         sign = 1 if source_x < self.pos[0] else -1
-        self.velocity[0] = KNOCKBACK_X * sign
-        self.velocity[1] = KNOCKBACK_Y
-        self.anim_last_tick_ms = self.e["Game"].sim_time_ms
+        self.velocity[0] = KNOCKBACK_X * sign * self.KNOCKBACK_MULT
+        self.velocity[1] = KNOCKBACK_Y * self.KNOCKBACK_MULT
         if self.health <= 0:
+            self._release_token()
             self.alive = False
             self._enter_state("dying")
             self.set_action("death", force=True)
+            self.anim_last_tick_ms = self.e["Game"].sim_time_ms
             return True
-        # play the hurt animation and lock out new attacks until it finishes
-        self._enter_state("hurt")
-        self.set_action("hurt", force=True)
+        if self.STAGGERS:
+            # play the hurt animation and lock out new attacks until it finishes
+            self._release_token()
+            self._enter_state("hurt")
+            self.set_action("hurt", force=True)
+            self.anim_last_tick_ms = self.e["Game"].sim_time_ms
+        # else: poise — the hit lands (damage, blink) but nothing is interrupted
         return True
 
     def _face_player(self, player):
@@ -231,7 +252,8 @@ class Enemy(pp.PhysicsEntity):
 
             # Jump when the player is elevated and we're close enough horizontally.
             if (
-                self.jump_cd <= 0
+                self.CAN_JUMP
+                and self.jump_cd <= 0
                 and self.collide_directions.get("down", False)
                 and dist <= JUMP_RANGE_X
                 and (self.center[1] - player.center[1]) >= JUMP_MIN_HEIGHT
@@ -254,7 +276,7 @@ class Enemy(pp.PhysicsEntity):
         # frozen telegraph: hold attack frame 0, then let the swing anim run
         self.velocity[0] *= 0.85
         self.physics_update(self.e["Game"].physics_map)
-        if self.state_time >= WINDUP_SEC:
+        if self.state_time >= self.WINDUP:
             self._enter_state("swing")
             self.anim_last_tick_ms = self.e["Game"].sim_time_ms
 
@@ -351,4 +373,25 @@ class Enemy(pp.PhysicsEntity):
             self.visible = int(self.invuln * 18) % 2 == 1
         else:
             self.visible = True
-        self.opacity = 255
+
+
+class Golem(Enemy):
+    """
+    Armored tank — the Bringer's opposite. Slow stomp, extra health, a long
+    telegraphed slam that hits for 2, and poise: player hits never stagger it
+    or interrupt its swing. You dodge the slam; you don't stun-lock it.
+    """
+
+    ENTITY_ID = "golem"
+    FLIP_DRAW_SHIFT = 0       # golem art is centered in its 64px frame
+    SPEED_SCALE = 0.45
+    HEALTH_BONUS = 2
+    COOLDOWN_SCALE = 1.5
+    KNOCKBACK_MULT = 0.25     # barely budges
+    STAGGERS = False
+    CAN_JUMP = False          # too heavy — camp a platform and it can't reach you
+    WINDUP = 0.25             # the 12-frame slam anim is its own telegraph
+    ATTACK_HIT_FRAMES = (6, 7, 8)
+    ATTACK_HITBOX = (34, 26)
+    ATTACK_EXTEND = 6
+    ATTACK_DAMAGE = 2

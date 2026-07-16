@@ -8,13 +8,18 @@ from scripts.pygpen.vfx.sparks import Spark
 ENABLE_HIT_PARTICLES = True #set to false if you want to disable
 HIT_SPARK_COUNT = 10
 HIT_DOT_COUNT = 6
+SPAWN_SPARK_COUNT = 8
+SPAWN_DOT_COUNT = 4
 
 
 class HitVFX:
-    def __init__(self, rng=None):
+    def __init__(self, rng=None, enabled=True):
         self.sparks = []
         self.dots = []
         self.rng = rng if rng is not None else rd
+        # headless RL passes enabled=False: never-rendered particles would
+        # otherwise be spawned and integrated on every sim tick
+        self.enabled = enabled and ENABLE_HIT_PARTICLES
 
     def clear(self):
         self.sparks = []
@@ -28,7 +33,7 @@ class HitVFX:
                   so it reads as knockback. If None, the burst fans out in a
                   random direction (e.g. fall damage, environmental hits).
         """
-        if not ENABLE_HIT_PARTICLES:
+        if not self.enabled:
             return
 
         cx, cy = pos[0], pos[1]
@@ -87,8 +92,55 @@ class HitVFX:
                 }
             )
 
+    def spawn_burst(self, pos):
+        """Cool-colored radial burst marking an enemy materializing in.
+
+        Distinct from the hit burst: even ring instead of a directional cone,
+        blue/white palette instead of red/orange, and dots drift upward.
+        """
+        if not self.enabled:
+            return
+
+        cx, cy = pos[0], pos[1]
+        for i in range(SPAWN_SPARK_COUNT):
+            # even ring with a little angular jitter
+            angle = (i / SPAWN_SPARK_COUNT) * math.tau + self.rng.uniform(-0.25, 0.25)
+            color = self.rng.choice(
+                [(140, 200, 255), (90, 140, 255), (230, 245, 255), (255, 255, 255)]
+            )
+            self.sparks.append(
+                Spark(
+                    [cx + self.rng.uniform(-3, 3), cy + self.rng.uniform(-6, 3)],
+                    angle,
+                    size=(
+                        self.rng.randint(4, 7),
+                        self.rng.randint(1, 2),
+                        self.rng.randint(3, 5),
+                        self.rng.randint(1, 2),
+                    ),
+                    speed=self.rng.uniform(70, 150),
+                    decay=self.rng.uniform(2.5, 4.0),
+                    color=color,
+                    z=5,
+                )
+            )
+
+        for _ in range(SPAWN_DOT_COUNT):
+            angle = self.rng.uniform(0, math.tau)
+            speed = self.rng.uniform(40, 90)
+            self.dots.append(
+                {
+                    "pos": [cx + self.rng.uniform(-4, 4), cy + self.rng.uniform(-8, 2)],
+                    # strong upward nudge so the motes float up as the body forms
+                    "vel": [math.cos(angle) * speed, math.sin(angle) * speed - 90],
+                    "life": self.rng.uniform(0.25, 0.45),
+                    "radius": self.rng.randint(1, 3),
+                    "color": self.rng.choice([(150, 200, 255), (220, 240, 255)]),
+                }
+            )
+
     def update(self, dt):
-        if not ENABLE_HIT_PARTICLES:
+        if not self.enabled:
             self.clear()
             return
 
@@ -108,7 +160,7 @@ class HitVFX:
         self.dots = alive_dots
 
     def render(self, surf, offset=(0, 0)):
-        if not ENABLE_HIT_PARTICLES:
+        if not self.enabled:
             return
 
         for spark in self.sparks:

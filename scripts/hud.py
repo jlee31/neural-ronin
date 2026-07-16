@@ -34,20 +34,22 @@ def draw_play_hud(
     health,
     max_health,
     level,
-    kills_this_level,
-    kills_to_advance,
+    wave,
+    wave_count,
+    enemies_left,
 ):
-    # In-game HUD: score/best top-left, level progress under it, health bar top-right.
+    # In-game HUD: score/best top-left, level/wave progress under it, health bar top-right.
     fonts = _fonts()
     _shadow(surf, fonts["md"], f"SCORE {score}", (8, 8))
     _shadow(surf, fonts["sm"], f"BEST {high_score}", (8, 28), (200, 200, 200))
     _shadow(
         surf,
         fonts["sm"],
-        f"LV {level}  {kills_this_level}/{kills_to_advance}",
+        f"LV {level}  WAVE {wave}/{wave_count}",
         (8, 46),
         (180, 220, 255),
     )
+    _shadow(surf, fonts["sm"], f"ENEMIES {enemies_left}", (8, 62), (255, 170, 150))
 
     bar_w, bar_h = 80, 8
     x = DISPLAY_WIDTH - bar_w - 12
@@ -75,7 +77,8 @@ def draw_menu(surf, high_score):
         "A/D    —  MOVE",
         "SPACE  —  JUMP",
         "J      —  ATTACK",
-        "CLEAR KILLS TO REACH NEXT LEVEL",
+        "K      —  DASH",
+        "CLEAR EVERY WAVE TO ADVANCE",
     ]
     y = 200
     for line in lines:
@@ -84,10 +87,9 @@ def draw_menu(surf, high_score):
         y += 22
 
 
-def draw_level_banner(surf, level, alpha_ratio):
-    # Big centered "LEVEL N" flash that fades out as alpha_ratio (1.0 → 0.0) drains.
+def draw_banner(surf, text, alpha_ratio):
+    # Big centered banner ("LEVEL 2", "WAVE CLEAR", …) that fades as alpha_ratio (1.0 → 0.0) drains.
     fonts = _fonts()
-    text = f"LEVEL {level}"
     tw = fonts["lg"].size(text)[0]
     overlay = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, int(90 * alpha_ratio)))

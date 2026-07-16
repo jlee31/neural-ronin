@@ -8,11 +8,12 @@ EDGE_PAD = 48        # keep spawns off the map's outer edges
 MIN_GAP = 34         # minimum spacing between spawn points
 
 # Each entry is one level. A level is `wave_count` waves of `enemy_count`
-# enemies; clear every wave to advance. Levels beyond this list scale from
+# Bringers plus `golem_count` golems; clear every wave to advance. Levels beyond this list scale from
 # the last template.
 LEVELS = [
     {
         "enemy_count": 2,
+        "golem_count": 0,
         "wave_count": 2,
         "max_attackers": 1,
         "max_health": 2,
@@ -22,6 +23,7 @@ LEVELS = [
     },
     {
         "enemy_count": 3,
+        "golem_count": 0,
         "wave_count": 2,
         "max_attackers": 1,
         "max_health": 2,
@@ -31,6 +33,7 @@ LEVELS = [
     },
     {
         "enemy_count": 3,
+        "golem_count": 1,
         "wave_count": 3,
         "max_attackers": 2,
         "max_health": 3,
@@ -40,6 +43,7 @@ LEVELS = [
     },
     {
         "enemy_count": 4,
+        "golem_count": 1,
         "wave_count": 3,
         "max_attackers": 2,
         "max_health": 3,
@@ -49,6 +53,7 @@ LEVELS = [
     },
     {
         "enemy_count": 4,
+        "golem_count": 2,
         "wave_count": 4,
         "max_attackers": 3,
         "max_health": 4,
@@ -69,6 +74,7 @@ def get_level_config(level: int) -> dict:
         extra = level - len(LEVELS)
         cfg["enemy_count"] = min(6, cfg["enemy_count"] + extra // 2)
         cfg["wave_count"] = min(6, cfg["wave_count"] + extra // 2)
+        cfg["golem_count"] = min(3, cfg["golem_count"] + extra // 3)
         cfg["max_attackers"] = min(4, cfg["max_attackers"] + extra // 4)
         cfg["max_health"] = cfg["max_health"] + extra // 2
         cfg["run_speed"] = cfg["run_speed"] + extra * 6
