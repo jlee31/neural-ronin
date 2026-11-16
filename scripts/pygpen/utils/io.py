@@ -19,9 +19,12 @@ def read_json(path):
     return data
 
 def write_json(path, data):
-    f = open(path, 'w')
+    # write to a temp file and rename so readers never see a partial file
+    tmp_path = path + '.tmp' + str(os.getpid())
+    f = open(tmp_path, 'w')
     json.dump(data, f)
     f.close()
+    os.replace(tmp_path, path)
     
 def tjson_hook(obj):
     if type(obj) == dict:

@@ -1,3 +1,4 @@
+import copy
 import os
 
 import pygame
@@ -54,6 +55,7 @@ class EntityDB(ElementSingleton):
             images = []
             config = {'images': {}, 'animations': {}, 'file_path': self.path + '/' + entity, 'id': entity, 'centered': False, 'offset': [0, 0], 'colorkey': [0, 0, 0],
                       'size': [1, 1], 'group': 'entity', 'collide_with': [], 'default': None}
+            loaded_config = None
             for file in os.listdir(self.path + '/' + entity):
                 if file.find('.') == -1:
                     animations.append(file)
@@ -61,6 +63,7 @@ class EntityDB(ElementSingleton):
                     images.append(file.split('.')[0])
                 if file == 'config.json':
                     config = read_json(self.path + '/' + entity + '/' + file)
+                    loaded_config = copy.deepcopy(config)
                     
             for image in images:
                 if image not in config['images']:
@@ -80,5 +83,6 @@ class EntityDB(ElementSingleton):
                 elif len(images):
                     config['default'] = images[0]
             
-            write_json(self.path + '/' + entity + '/config.json', config)
+            if config != loaded_config:
+                write_json(self.path + '/' + entity + '/config.json', config)
             self.configs[config['id']] = EntityData(config)
