@@ -2,13 +2,11 @@ import pygame
 
 from scripts.SETTINGS import DISPLAY_WIDTH, DISPLAY_HEIGHT
 
-# Sizes tuned for the 640x360 pixel canvas. Built lazily on first draw because
-# pygame.font needs pygame.init() to have run.
 _FONTS = None
 
 
 def _fonts():
-    # Lazy-build and cache the three font sizes used across the HUD.
+    # built on first use; pygame.font needs pygame.init() first
     global _FONTS
     if _FONTS is None:
         _FONTS = {
@@ -20,7 +18,6 @@ def _fonts():
 
 
 def _shadow(surf, font, text, pos, color=(255, 255, 255)):
-    # Draw text twice (black underneath, color on top) for a 1px drop shadow — keeps HUD readable over any background.
     shadow = font.render(text, True, (0, 0, 0))
     main = font.render(text, True, color)
     surf.blit(shadow, (pos[0] + 1, pos[1] + 1))
@@ -38,7 +35,6 @@ def draw_play_hud(
     wave_count,
     enemies_left,
 ):
-    # In-game HUD: score/best top-left, level/wave progress under it, health bar top-right.
     fonts = _fonts()
     _shadow(surf, fonts["md"], f"SCORE {score}", (8, 8))
     _shadow(surf, fonts["sm"], f"BEST {high_score}", (8, 28), (200, 200, 200))
@@ -63,7 +59,6 @@ def draw_play_hud(
 
 
 def draw_menu(surf, high_score):
-    # Title screen: dim overlay + "NEURAL RONIN" title, high score, and control list.
     fonts = _fonts()
     overlay = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT), pygame.SRCALPHA)
     overlay.fill((12, 14, 22, 200))
@@ -73,11 +68,11 @@ def draw_menu(surf, high_score):
     _shadow(surf, fonts["lg"], title, ((DISPLAY_WIDTH - tw) // 2, 72), (240, 210, 120))
     _shadow(surf, fonts["md"], f"HIGH SCORE  {high_score}", ((DISPLAY_WIDTH - 200) // 2, 130), (180, 220, 255))
     lines = [
-        "ENTER  —  START",
-        "A/D    —  MOVE",
-        "SPACE  —  JUMP",
-        "J      —  ATTACK",
-        "K      —  DASH",
+        "ENTER  -  START",
+        "A/D    -  MOVE",
+        "SPACE  -  JUMP",
+        "J      -  ATTACK",
+        "K      -  DASH",
         "CLEAR EVERY WAVE TO ADVANCE",
     ]
     y = 200
@@ -88,7 +83,6 @@ def draw_menu(surf, high_score):
 
 
 def draw_banner(surf, text, alpha_ratio):
-    # Big centered banner ("LEVEL 2", "WAVE CLEAR", …) that fades as alpha_ratio (1.0 → 0.0) drains.
     fonts = _fonts()
     tw = fonts["lg"].size(text)[0]
     overlay = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT), pygame.SRCALPHA)
@@ -105,7 +99,6 @@ def draw_banner(surf, text, alpha_ratio):
 
 
 def draw_game_over(surf, score, high_score, is_new_record, level=1):
-    # Death screen: dim overlay + final score/level/best, "NEW HIGH SCORE!" if applicable, and restart prompts.
     overlay = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 160))
     surf.blit(overlay, (0, 0))
@@ -121,5 +114,5 @@ def draw_game_over(surf, score, high_score, is_new_record, level=1):
         msg = "NEW HIGH SCORE!"
         mw = fonts["md"].size(msg)[0]
         _shadow(surf, fonts["md"], msg, ((DISPLAY_WIDTH - mw) // 2, 224), (255, 220, 80))
-    _shadow(surf, fonts["sm"], "ENTER — TRY AGAIN", ((DISPLAY_WIDTH - 130) // 2, 258))
-    _shadow(surf, fonts["sm"], "ESC — MENU", ((DISPLAY_WIDTH - 90) // 2, 280), (180, 180, 180))
+    _shadow(surf, fonts["sm"], "ENTER - TRY AGAIN", ((DISPLAY_WIDTH - 130) // 2, 258))
+    _shadow(surf, fonts["sm"], "ESC - MENU", ((DISPLAY_WIDTH - 90) // 2, 280), (180, 180, 180))

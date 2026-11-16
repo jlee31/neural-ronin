@@ -16,11 +16,9 @@ class _PhysTile:
 
 class TiledPhysicsBridge:
     """
-    Wraps a pytmx TiledMap and exposes the pygpen Tilemap subset that
-    PhysicsEntity.physics_update() needs: nearby_grid_physics(pos).
-
-    Tiles in solid_layers are solid by default. Override per tile in Tiled
-    via a custom string property 'physics_type' (solid|dropthrough|rampr|rampl).
+    Exposes nearby_grid_physics(pos) from a pytmx map so pygpen's
+    PhysicsEntity can collide with it. Tiles in solid_layers are solid
+    unless a 'physics_type' tile property says otherwise.
     """
 
     def __init__(self, tmx_map, solid_layers=('Floor',)):

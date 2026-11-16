@@ -1,15 +1,11 @@
-"""Level definitions and randomized off-camera enemy spawn placement."""
-
 from scripts.SETTINGS import DISPLAY_WIDTH
 
 FLOOR_Y = 17 * 32 - 30
 OFFSCREEN_MARGIN = 80
-EDGE_PAD = 48        # keep spawns off the map's outer edges
-MIN_GAP = 34         # minimum spacing between spawn points
+EDGE_PAD = 48        # keep spawns off the map edges
+MIN_GAP = 34         # min spacing between spawn points
 
-# Each entry is one level. A level is `wave_count` waves of `enemy_count`
-# Bringers plus `golem_count` golems; clear every wave to advance. Levels beyond this list scale from
-# the last template.
+# one entry per level; levels past the end scale from the last one
 LEVELS = [
     {
         "enemy_count": 2,
@@ -64,8 +60,7 @@ LEVELS = [
 ]
 
 
-def get_level_config(level: int) -> dict:
-    """Return tunables for level 1, 2, 3, … (scales past defined LEVELS)."""
+def get_level_config(level):
     level = max(1, level)
     if level <= len(LEVELS):
         cfg = dict(LEVELS[level - 1])
@@ -86,10 +81,8 @@ def get_level_config(level: int) -> dict:
 
 def spawn_positions(player_x, camera_x, map_w, count, rng, floor_y=FLOOR_Y):
     """
-    Random spawn points outside the camera, preferring the side away from the
-    player. Spacing is randomized (no orderly rows). When the preferred side
-    has no off-camera room, spawns spill to the other side; as a last resort
-    an enemy drops at a random legal x — the spawn-in effect covers that case.
+    Random off-camera spawn points, preferring the side away from the player.
+    Falls back to the other side, then to any legal x.
     """
     cam_left = camera_x
     cam_right = camera_x + DISPLAY_WIDTH
@@ -97,11 +90,9 @@ def spawn_positions(player_x, camera_x, map_w, count, rng, floor_y=FLOOR_Y):
         "left": (EDGE_PAD, cam_left - OFFSCREEN_MARGIN),
         "right": (cam_right + OFFSCREEN_MARGIN, map_w - EDGE_PAD),
     }
-    # keep only zones wide enough to actually hold a spawn
     zones = {k: (lo, hi) for k, (lo, hi) in zones.items() if hi - lo >= MIN_GAP}
     preferred = "right" if player_x < (cam_left + cam_right) / 2 else "left"
     order = [z for z in (preferred, "left", "right") if z in zones]
-    # dedupe while preserving preference order
     order = list(dict.fromkeys(order))
 
     xs = []

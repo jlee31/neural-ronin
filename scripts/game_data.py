@@ -2,8 +2,6 @@ import os
 from scripts.pygpen.utils.io import read_json, write_json
 
 HIGH_SCORE_PATH = os.path.join("config", "high_score.json")
-SCORE_PER_KILL = 100
-ENEMY_RESPAWN_SEC = 3.0
 
 def load_high_score():
     try:

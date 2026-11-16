@@ -1,7 +1,6 @@
 import scripts.pygpen as pp
 from scripts.combat import try_enemy_attack_hit
 
-# Match player-ish platforming so RL / human controls feel comparable.
 GRAVITY = 500
 RUN_SPEED = 75
 MAX_FALL = 330
@@ -10,36 +9,33 @@ MELEE_COOLDOWN = 1.2
 MAX_HEALTH = 2
 KNOCKBACK_X = 130
 KNOCKBACK_Y = -90
-# How close before the enemy winds up an attack (not damage range — hitbox handles that).
-ATTACK_RANGE_X = 38
+ATTACK_RANGE_X = 38       # distance at which an attack starts (hitbox decides damage)
 ATTACK_RANGE_Y = 30
-# Jumping to reach an elevated player.
-JUMP_VEL = -300           # upward impulse (weaker than player's -400)
-JUMP_RANGE_X = 100        # horizontal distance at which the jump is worth attempting
-JUMP_MIN_HEIGHT = 48      # player must be at least this many px above to trigger
-JUMP_COOLDOWN = 1.6       # seconds between jumps
+JUMP_VEL = -300
+JUMP_RANGE_X = 100        # horizontal distance within which a jump is attempted
+JUMP_MIN_HEIGHT = 48      # player must be this far above to trigger a jump
+JUMP_COOLDOWN = 1.6
 
-# AI feel tunables.
-SPAWN_IN_SEC = 0.6        # materialize time: hidden, then blinking in, before acting
-STANDOFF_DIST = 70        # px enemies without an attack token keep from the player
-CLOSE_DIST = 28           # px the token holder closes to (inside ATTACK_RANGE_X)
-TOKEN_REQUEST_DIST = 120  # only ask the director for a token within this range
-FACING_DEADZONE = 12      # px past center before the enemy turns around
-WINDUP_SEC = 0.35         # frozen telegraph before the swing anim starts
+SPAWN_IN_SEC = 0.6        # hidden, then blinking in, before acting
+STANDOFF_DIST = 70        # distance enemies without an attack token keep
+CLOSE_DIST = 28           # distance the token holder closes to
+TOKEN_REQUEST_DIST = 120
+FACING_DEADZONE = 12      # px past center before turning around
+WINDUP_SEC = 0.35         # frozen telegraph before the swing
 RECOVER_SEC = 0.5         # back-off time after a swing
 RECOVER_SPEED_MULT = 0.5
-ACCEL_LERP = 10.0         # per-second velocity lerp toward the target speed
-SEPARATION_DIST = 16      # px between enemy centers before they push apart
-SEPARATION_PUSH = 40      # px/s added to fan out stacked enemies
-SPEED_JITTER = (0.9, 1.1)  # per-spawn run-speed multiplier range
+ACCEL_LERP = 10.0
+SEPARATION_DIST = 16      # distance between enemy centers before they push apart
+SEPARATION_PUSH = 40
+SPEED_JITTER = (0.9, 1.1)  # per-spawn run speed multiplier
 
 
 class EnemyDirector:
-    """Caps how many enemies may press the attack at once (aggression tokens)."""
+    """Limits how many enemies may attack at once."""
 
     def __init__(self, max_attackers):
         self.max_attackers = max_attackers
-        self.holders = set()  # enemy uids
+        self.holders = set()
 
     def request(self, enemy):
         if enemy.uid in self.holders:
@@ -55,28 +51,23 @@ class EnemyDirector:
 
 class Enemy(pp.PhysicsEntity):
     """
-    State machine: spawning -> pursue -> windup -> swing -> recover -> pursue,
-    interrupted by hurt (player hit landed) and dying (health reached 0).
-
-    Only aggression-token holders (EnemyDirector) may enter windup; the rest
-    hold a standoff distance so the player is never blob-rushed.
-
-    Subclasses override the class attributes below to make new enemy types;
-    level configs are Bringer-tuned, so the scales adapt them per type.
+    States: spawning -> pursue -> windup -> swing -> recover -> pursue,
+    plus hurt and dying. Only token holders may enter windup; the rest
+    hold at STANDOFF_DIST. Subclasses override the class attributes.
     """
 
     ENTITY_ID = "dummy_enemy"
-    FLIP_DRAW_SHIFT = 71      # px the sprite jumps when mirrored (off-center art)
-    SPEED_SCALE = 1.0         # multiplier on the level config's run_speed
-    HEALTH_BONUS = 0          # added to the level config's max_health
-    COOLDOWN_SCALE = 1.0      # multiplier on the level config's melee_cooldown
-    KNOCKBACK_MULT = 1.0      # how far player hits shove this enemy
-    STAGGERS = True           # False = poise: hits never interrupt the current action
+    FLIP_DRAW_SHIFT = 71      # px the sprite shifts when mirrored (art is off-center)
+    SPEED_SCALE = 1.0
+    HEALTH_BONUS = 0
+    COOLDOWN_SCALE = 1.0
+    KNOCKBACK_MULT = 1.0
+    STAGGERS = True           # False: player hits never interrupt the current action
     CAN_JUMP = True
     WINDUP = WINDUP_SEC
-    ATTACK_HIT_FRAMES = (4, 5, 6)  # 0-based `attack` anim frames that can connect
-    ATTACK_HITBOX = (28, 24)       # melee hitbox in front of the body (width, height)
-    ATTACK_EXTEND = 4              # horizontal overlap from body edge into the swing arc
+    ATTACK_HIT_FRAMES = (4, 5, 6)
+    ATTACK_HITBOX = (28, 24)
+    ATTACK_EXTEND = 4
     ATTACK_DAMAGE = 1
 
     def __init__(self, pos, level_cfg=None, director=None, uid=0):
@@ -109,15 +100,11 @@ class Enemy(pp.PhysicsEntity):
 
     @property
     def attacking(self):
-        # combat.py and rl/env.py read this; windup counts so the telegraph is observable
         return self.state in ("windup", "swing")
 
     @property
     def local_offset(self):
-        # Character is drawn off-center in the 140-wide Bringer frame (body at
-        # x≈12-56). When pygame mirrors the sprite for flip[0]=True the body
-        # snaps to x≈84-128, so the visible character jumps 71 px sideways.
-        # Compensate by shifting the draw offset the other way when flipped.
+        # mirrored sprites shift sideways when the art isn't centered in its frame
         img_offset = self.config[self.source][self.action]['offset']
         entity_offset = self.config['offset']
         x = img_offset[0] + entity_offset[0]
@@ -135,7 +122,6 @@ class Enemy(pp.PhysicsEntity):
         self.run_speed = cfg["run_speed"] * self.SPEED_SCALE
         self.melee_cooldown_base = cfg["melee_cooldown"] * self.COOLDOWN_SCALE
 
-    # ------------------------------------------------------------------ state helpers
     def _enter_state(self, state):
         self.state = state
         self.state_time = 0.0
@@ -160,17 +146,13 @@ class Enemy(pp.PhysicsEntity):
             self.anim_last_tick_ms = self.e["Game"].sim_time_ms
             return True
         if self.STAGGERS:
-            # play the hurt animation and lock out new attacks until it finishes
             self._release_token()
             self._enter_state("hurt")
             self.set_action("hurt", force=True)
             self.anim_last_tick_ms = self.e["Game"].sim_time_ms
-        # else: poise — the hit lands (damage, blink) but nothing is interrupted
         return True
 
     def _face_player(self, player):
-        # deadzone stops the flip-flicker (and the 71px flip-offset jump)
-        # when the player hovers directly above the enemy's center
         diff = player.center[0] - self.center[0]
         if abs(diff) > FACING_DEADZONE:
             self.flip[0] = diff < 0
@@ -182,8 +164,7 @@ class Enemy(pp.PhysicsEntity):
         )
 
     def _tick_animation_step(self):
-        # Same one-frame-per-tick rule as the player — pygpen's dt-based update can
-        # skip past hit frames entirely when dt spikes (Window dt_cap).
+        # one frame per tick max, same as the player
         a = self.animation
         if a is None:
             return
@@ -213,15 +194,12 @@ class Enemy(pp.PhysicsEntity):
                 if d != 0:
                     push += SEPARATION_PUSH if d > 0 else -SEPARATION_PUSH
                 else:
-                    # perfectly stacked: break the tie deterministically
                     push += SEPARATION_PUSH if self.uid > other.uid else -SEPARATION_PUSH
         return push
 
     def _approach(self, target_vx, dt):
-        # accelerate toward the target speed instead of snapping — reads as weight
         self.velocity[0] += (target_vx - self.velocity[0]) * min(1.0, ACCEL_LERP * dt)
 
-    # ------------------------------------------------------------------ per-state updates
     def _update_pursue(self, player, enemies, dt):
         target_vx = 0.0
         player_active = player.alive and not player.dying
@@ -231,11 +209,9 @@ class Enemy(pp.PhysicsEntity):
             diff = player.center[0] - self.center[0]
             dist = abs(diff)
 
-            # ask for an attack token once we're near enough to matter
             if not self.token and self.melee_cd <= 0 and dist <= TOKEN_REQUEST_DIST:
                 self.token = self.director.request(self)
 
-            # token holder presses in; everyone else holds a standoff ring
             desired = CLOSE_DIST if self.token else STANDOFF_DIST
             if dist > desired:
                 direction = 1 if diff > 0 else -1
@@ -250,7 +226,6 @@ class Enemy(pp.PhysicsEntity):
                 self.set_action("attack", force=True)
                 return
 
-            # Jump when the player is elevated and we're close enough horizontally.
             if (
                 self.CAN_JUMP
                 and self.jump_cd <= 0
@@ -273,7 +248,7 @@ class Enemy(pp.PhysicsEntity):
             self.animation.update(dt)
 
     def _update_windup(self):
-        # frozen telegraph: hold attack frame 0, then let the swing anim run
+        # hold attack frame 0 as the telegraph
         self.velocity[0] *= 0.85
         self.physics_update(self.e["Game"].physics_map)
         if self.state_time >= self.WINDUP:
@@ -292,7 +267,6 @@ class Enemy(pp.PhysicsEntity):
             self._enter_state("recover")
 
     def _update_recover(self, player, enemies, dt):
-        # back off to reset spacing — keeps facing the player while retreating
         target_vx = 0.0
         if player.alive and not player.dying:
             self._face_player(player)
@@ -309,7 +283,6 @@ class Enemy(pp.PhysicsEntity):
             self._enter_state("pursue")
 
     def _update_hurt(self):
-        # knockback decays, no input, wait for hurt anim to finish
         self.velocity[0] *= 0.85
         self.physics_update(self.e["Game"].physics_map)
         self._tick_animation_step()
@@ -318,8 +291,6 @@ class Enemy(pp.PhysicsEntity):
             self._enter_state("pursue")
 
     def _update_spawning(self):
-        # materialize: hidden at first, then blink in; gravity settles the body.
-        # No actions and no facing changes until fully formed.
         self.velocity[0] = 0.0
         self.physics_update(self.e["Game"].physics_map)
         t = self.state_time
@@ -332,7 +303,6 @@ class Enemy(pp.PhysicsEntity):
             self._enter_state("pursue")
 
     def _update_dying(self):
-        # body settles while the death anim plays, then the sprite hides
         self.velocity[0] *= 0.85
         self.physics_update(self.e["Game"].physics_map)
         self._tick_animation_step()
@@ -340,9 +310,8 @@ class Enemy(pp.PhysicsEntity):
             self.visible = False
             self._enter_state("dead")
 
-    # ------------------------------------------------------------------ update
     def update(self, player, enemies):
-        if not self.alive and self.state not in ("dying",):
+        if not self.alive and self.state != "dying":
             return
 
         dt = self.e["Game"].dt
@@ -355,7 +324,6 @@ class Enemy(pp.PhysicsEntity):
             self._update_dying()
             return
         if self.state == "spawning":
-            # handles its own visibility (blink-in) — skip the invuln block below
             self._update_spawning()
             return
         if self.state == "hurt":
@@ -376,21 +344,17 @@ class Enemy(pp.PhysicsEntity):
 
 
 class Golem(Enemy):
-    """
-    Armored tank — the Bringer's opposite. Slow stomp, extra health, a long
-    telegraphed slam that hits for 2, and poise: player hits never stagger it
-    or interrupt its swing. You dodge the slam; you don't stun-lock it.
-    """
+    """Slow, tanky, hits for 2, doesn't stagger, can't jump."""
 
     ENTITY_ID = "golem"
-    FLIP_DRAW_SHIFT = 0       # golem art is centered in its 64px frame
+    FLIP_DRAW_SHIFT = 0
     SPEED_SCALE = 0.45
     HEALTH_BONUS = 2
     COOLDOWN_SCALE = 1.5
-    KNOCKBACK_MULT = 0.25     # barely budges
+    KNOCKBACK_MULT = 0.25
     STAGGERS = False
-    CAN_JUMP = False          # too heavy — camp a platform and it can't reach you
-    WINDUP = 0.25             # the 12-frame slam anim is its own telegraph
+    CAN_JUMP = False
+    WINDUP = 0.25
     ATTACK_HIT_FRAMES = (6, 7, 8)
     ATTACK_HITBOX = (34, 26)
     ATTACK_EXTEND = 6
