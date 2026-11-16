@@ -1,35 +1,43 @@
 # neural ronin
 
-written in pygame
+A samurai wave-survival platformer written in pygame, with a headless mode
+for training a reinforcement learning agent to play it.
 
-## how to setup : download dependencies
+## setup
 
-to avoid dependency errors, use a python environment
+Use a virtual environment, then:
 
-``` bash
-pip install requirements.txt -r
+```bash
+pip install -r requirements.txt
 ```
 
-### how to play
+## play
 
-``` bash
+```bash
 python main.py
 ```
 
 Controls:
 
-- WASD to Move
-- J to attack
+- A / D: move
+- Space: jump (double jump)
+- J: attack
+- K: dash (i-frames)
+- Enter: start / retry
+- Esc: back to menu
 
-### how to do the RL part
+Clear every wave to advance to the next level.
 
-those files live within /rl. i used stablebaselines and gymnasium to emulate an environment 
+## RL
 
+The Gymnasium env and PPO trainer live in `rl/`. Run from the project root:
+
+```bash
+python -m rl.train                  # train (2M steps, 8 workers)
+python -m rl.train --eval           # headless episode with the saved model
+python -m rl.train --watch          # watch the saved model play
+tensorboard --logdir rl/logs        # training curves
 ```
-python -m rl.train
-```
 
-```
-python -m rl.train --watch
-```
-
+See [docs/RL_GUIDE.md](docs/RL_GUIDE.md) for the observation, action and
+reward definitions and how to change them.

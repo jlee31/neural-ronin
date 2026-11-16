@@ -4,7 +4,7 @@ Two-phase plan: build a real game first, then wire in RL.
 
 ---
 
-## Phase 1 — Playable platformer
+## Phase 1: Playable platformer
 
 The bar: a samurai you can run/jump around a hand-made level and attack an enemy.
 
@@ -32,7 +32,7 @@ The bar: a samurai you can run/jump around a hand-made level and attack an enemy
 
 ### 1.4 Combat + enemy
 - [ ] Add attack action (key press → play attack animation, spawn hitbox)
-- [ ] Create `scripts/entities/enemy.py` — basic enemy that walks back and forth
+- [ ] Create `scripts/entities/enemy.py`: basic enemy that walks back and forth
 - [ ] Hitbox vs enemy → enemy takes damage / dies
 - [ ] Enemy can hurt player on contact (HURT animation)
 - [ ] Player has HP, dies when HP=0
@@ -40,7 +40,7 @@ The bar: a samurai you can run/jump around a hand-made level and attack an enemy
 
 ---
 
-## Phase 2 — Make it a real game
+## Phase 2: Make it a real game
 
 Loose list, fill in as the game takes shape:
 - [ ] Health bar / UI (`pygpen` has `ui/` helpers)
@@ -54,38 +54,34 @@ Loose list, fill in as the game takes shape:
 
 ---
 
-## Phase 3 — Reinforcement learning
+## Phase 3: Reinforcement learning
 
 The game should already be playable + fun before starting this. RL needs:
 - Deterministic frame stepping (no wall-clock dependency in game logic)
 - Inspectable game state (player pos/vel, enemy pos, hp, etc. accessible from outside)
 - Headless mode (run game without opening a window)
 
-**See [rl-handoff.md](rl-handoff.md)** for the full API + remaining-work doc.
+**See [docs/RL_GUIDE.md](../docs/RL_GUIDE.md)** for the env, reward and training details.
 
 ### 3.1 Headless game ✅
 
 - [x] Refactor `Game` so it can run without a `Window` (SDL dummy driver)
 - [x] Step-mode: `Game.step(actions)` advances exactly one fixed-dt frame
-- [x] Seeded RNG, sim-time animation clock, input adapter — all in place
+- [x] Seeded RNG, sim-time animation clock, input adapter: all in place
 
-### 3.2 Wire up `rl/env.py`
-- [ ] `reset()`: instantiate game, load level, return initial obs
-- [ ] `step(action)`: map action int → input flags, advance one frame, return obs/reward/done
-- [ ] `_get_obs()`: pack player state (pos, vel, hp, nearest enemy info) into numpy array
-- [ ] `_get_reward()`: shape it — small bonus for moving right, big bonus for killing enemy, big penalty for dying
-- [ ] `_is_done()`: True on death or level-clear
+### 3.2 Wire up `rl/env.py` ✅
+- [x] `reset()` / `step()` / `build_obs()` with a 17-float feature observation
+- [x] shaped reward: damage dealt, kills, damage taken, time cost, death
 
 ### 3.3 Train
-- [ ] `pip install stable-baselines3`
-- [ ] Wire `train.py`: PPO on `GameEnv`, log to `rl/logs/`, checkpoint to `rl/models/`
-- [ ] Run a tiny smoke training (10k timesteps) to confirm the pipeline works
+- [x] `train.py`: PPO on `GameEnv`, 8 parallel workers, eval + checkpoint callbacks
+- [x] smoke training confirms the pipeline works
 - [ ] Tune from there
 
 ---
 
 ## Notes
 
-- Use `level_editor.py` whenever level design needs to change — don't hand-edit JSON.
-- Keep `Game.update()` free of wall-clock time (`time.time()`, real sleep) — use a `dt` argument so RL can step at any rate.
-- When in doubt about a `pygpen` feature, look at `scripts/pygpen/__init__.py` — it lists every public class.
+- Use `level_editor.py` whenever level design needs to change: don't hand-edit JSON.
+- Keep `Game.update()` free of wall-clock time (`time.time()`, real sleep): use a `dt` argument so RL can step at any rate.
+- When in doubt about a `pygpen` feature, look at `scripts/pygpen/__init__.py`: it lists every public class.
